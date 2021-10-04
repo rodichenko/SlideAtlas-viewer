@@ -130,7 +130,7 @@
       // It should receive events before the rotate icon.
       this.OverViewDiv.css({'z-index': '49'});
     }
-    this.ZoomTarget = this.MainView.Camera.GetHeight();
+    this.ZoomTarget = this.CorrectZoomTarget(this.MainView.Camera.GetHeight());
     this.RollTarget = this.MainView.Camera.GetWorldRoll();
 
     this.DoubleClickX = 0;
@@ -775,6 +775,9 @@
     this.ZoomTab = new SA.Tab(this.GetDiv(),
                                SA.ImagePathUrl + 'mag.png',
                                'zoomTab');
+    this.ZoomTab.Button
+        .addClass('sa-magnifier-button');
+
     this.ZoomTab.Div
       .css({
         'box-sizing': 'border-box',
@@ -803,7 +806,7 @@
       .appendTo(this.ZoomDiv)
       .addClass('sa-view-zoom-button sa-zoom-in')
       .attr('type', 'image')
-      .attr('src', SA.ImagePathUrl + 'zoomin2.png')
+      .attr('src', SA.ImagePathUrl + 'zoomin.svg')
       .on('click touchstart', function () { self.AnimateZoom(0.5); })
       .attr('draggable', 'false')
       .on('dragstart', function () {
@@ -813,7 +816,7 @@
     this.ZoomOutButton = $('<img>').appendTo(this.ZoomDiv)
       .addClass('sa-view-zoom-button sa-zoom-out')
       .attr('type', 'image')
-      .attr('src', SA.ImagePathUrl + 'zoomout2.png')
+      .attr('src', SA.ImagePathUrl + 'zoomout.svg')
       .on('click touchstart', function () { self.AnimateZoom(2.0); })
       .attr('draggable', 'false')
       .on('dragstart', function () {
@@ -827,23 +830,11 @@
   Viewer.prototype.UpdateZoomGui = function () {
     if (!this.ZoomDisplay) { return; }
     var camHeight = this.GetCamera().GetHeight();
-    var windowHeight = this.GetViewport()[3];
-    // Assume image scanned at 40x
-    var zoomValue = 40.0 * windowHeight / camHeight;
-    // 2.5 and 1.25 are standard in the geometric series.
-    if (zoomValue < 2) {
-      zoomValue = zoomValue.toFixed(2);
-    } else if (zoomValue < 4) {
-      zoomValue = zoomValue.toFixed(1);
-    } else {
-      zoomValue = Math.round(zoomValue);
-    }
-    this.ZoomDisplay.html('x' + zoomValue);
-
     // I am looking for the best place to update this value.
     // Trying to fix a bug: Large scroll when wheel event occurs
     // first.
-    this.ZoomTarget = camHeight;
+    this.ZoomTarget = this.CorrectZoomTarget(camHeight);
+    this.ZoomDisplay.html('x' + this.GetCurrentZoomValue());
   };
 
   Viewer.prototype.SaveImage = function (fileName) {
@@ -1116,6 +1107,68 @@
     return this.MainView.GetCache();
   };
 
+  Viewer.prototype.GetCurrentZoomValue = function () {
+    var camera = this.GetCamera();
+    var viewport = this.GetViewport();
+    if (camera && viewport) {
+      var camHeight = camera.GetHeight();
+      var windowHeight = viewport[3];
+      // Assume image scanned at 40x
+      var scannedAt = 40.0;
+      if (this.MainView) {
+        var cache = this.MainView.GetCache();
+        if (
+            cache &&
+            cache.TileSource &&
+            Number(cache.TileSource.scannedAt) &&
+            !Number.isNaN(cache.TileSource.scannedAt)
+        ) {
+          scannedAt = Number(cache.TileSource.scannedAt);
+        }
+      }
+      var zoomValue = scannedAt * windowHeight / camHeight;
+      // 2.5 and 1.25 are standard in the geometric series.
+      if (zoomValue < 2) {
+        zoomValue = zoomValue.toFixed(2);
+      } else if (zoomValue < 4) {
+        zoomValue = zoomValue.toFixed(1);
+      } else {
+        zoomValue = Math.round(zoomValue);
+      }
+      return zoomValue;
+    }
+    return 1;
+  };
+
+  Viewer.prototype.GetMinHeight = function () {
+    if (this.MainView) {
+      var cache = this.MainView.GetCache();
+      var viewport = this.GetViewport();
+      if (cache && cache.TileSource && viewport) {
+        var maxZoomLevel = Number(cache.TileSource.maxZoomLevel);
+        var windowHeight = viewport[3];
+        var scannedAt = Number(cache.TileSource.scannedAt || 40);
+        if (
+            maxZoomLevel &&
+            !Number.isNaN(maxZoomLevel) &&
+            scannedAt &&
+            !Number.isNaN(scannedAt)
+        ) {
+          return windowHeight * scannedAt / maxZoomLevel;
+        }
+      }
+    }
+    return undefined;
+  };
+
+  Viewer.prototype.CorrectZoomTarget = function (zoomTarget) {
+    var minHeight = this.GetMinHeight();
+    if (minHeight && !Number.isNaN(Number(minHeight))) {
+      return Math.max(minHeight, zoomTarget);
+    }
+    return zoomTarget;
+  };
+
   // ORIGIN SEEMS TO BE BOTTOM LEFT !!!
   // I intend this method to get called when the window resizes.
   // TODO: Redo all this overview viewport junk.
@@ -1176,7 +1229,7 @@
 
   // Same as set camera but use animation
   Viewer.prototype.AnimateCamera = function (center, rotation, height) {
-    this.ZoomTarget = height;
+    this.ZoomTarget = this.CorrectZoomTarget(height);
     // Compute traslate target to keep position in the same place.
     this.TranslateTarget[0] = center[0];
     this.TranslateTarget[1] = center[1];
@@ -1191,7 +1244,7 @@
   // The user can change the mainview camera and then call this method.
   Viewer.prototype.UpdateCamera = function () {
     var cam = this.MainView.Camera;
-    this.ZoomTarget = cam.Height;
+    this.ZoomTarget = this.CorrectZoomTarget(cam.Height);
 
     var fp = cam.GetWorldFocalPoint();
     this.TranslateTarget[0] = fp[0];
@@ -1214,7 +1267,7 @@
     this.MainView.Camera.SetWorldFocalPoint([center[0], center[1]]);
     this.MainView.Camera.SetWorldRoll(rotation * 3.14159265359 / 180.0);
 
-    this.ZoomTarget = height;
+    this.ZoomTarget = this.CorrectZoomTarget(height);
     this.TranslateTarget[0] = center[0];
     this.TranslateTarget[1] = center[1];
     this.RollTarget = rotation;
@@ -1236,16 +1289,16 @@
 
     SA.StackCursorFlag = false;
 
-    this.ZoomTarget = this.MainView.Camera.GetHeight() * factor;
-    if (this.ZoomTarget < 0.9 / (1 << 5)) {
-      this.ZoomTarget = 0.9 / (1 << 5);
+    var tempZoomTarget = this.MainView.Camera.GetHeight() * factor;
+    if (tempZoomTarget < 0.9 / (1 << 5)) {
+      tempZoomTarget = 0.9 / (1 << 5);
     }
 
     // Lets restrict discrete zoom values to be standard values.
     var windowHeight = this.GetViewport()[3];
-    var tmp = Math.round(Math.log(32.0 * windowHeight / this.ZoomTarget) /
+    var tmp = Math.round(Math.log(32.0 * windowHeight / tempZoomTarget) /
                              Math.log(2));
-    this.ZoomTarget = 32.0 * windowHeight / Math.pow(2, tmp);
+    this.ZoomTarget = this.CorrectZoomTarget(32.0 * windowHeight / Math.pow(2, tmp));
 
     factor = this.ZoomTarget / this.MainView.Camera.GetHeight(); // Actual factor after limit.
 
@@ -1279,7 +1332,7 @@
     this.TranslateTarget[0] = fp[0] + dx;
     this.TranslateTarget[1] = fp[1] + dy;
 
-    this.ZoomTarget = this.MainView.Camera.GetHeight();
+    this.ZoomTarget = this.CorrectZoomTarget(this.MainView.Camera.GetHeight());
     this.RollTarget = this.MainView.Camera.GetWorldRoll();
 
     this.AnimateLast = new Date().getTime();
@@ -1291,7 +1344,7 @@
     dRoll *= Math.PI / 180.0;
     this.RollTarget = this.MainView.Camera.GetWorldRoll() + dRoll;
 
-    this.ZoomTarget = this.MainView.Camera.GetHeight();
+    this.ZoomTarget = this.CorrectZoomTarget(this.MainView.Camera.GetHeight());
     var fp = this.MainView.Camera.GetWorldFocalPoint();
     this.TranslateTarget[0] = fp[0];
     this.TranslateTarget[1] = fp[1];
@@ -1308,7 +1361,7 @@
 
     this.RollTarget = this.MainView.Camera.GetWorldRoll() + dRoll;
 
-    this.ZoomTarget = this.MainView.Camera.GetHeight();
+    this.ZoomTarget = this.CorrectZoomTarget(this.MainView.Camera.GetHeight());
 
     this.AnimateLast = new Date().getTime();
     this.AnimateDuration = 200.0; // hard code 200 milliseconds
@@ -2342,7 +2395,7 @@
       dy = this.MouseDeltaY / this.MainView.Viewport[2];
       this.MainView.Camera.SetHeight(this.MainView.Camera.GetHeight() /
                                            (1.0 + (dy * 5.0)));
-      this.ZoomTarget = this.MainView.Camera.GetHeight();
+      this.ZoomTarget = this.CorrectZoomTarget(this.MainView.Camera.GetHeight());
       this.UpdateCamera();
     } else if (this.InteractionState === INTERACTION_DRAG) {
       // Translate
@@ -2419,6 +2472,7 @@
     } else if (tmp < 0) {
       this.ZoomTarget /= (1.0 + this.WheelSensitivity);
     }
+    this.ZoomTarget = this.CorrectZoomTarget(this.ZoomTarget);
 
     // Compute translate target to keep position in the same place.
     var position = this.ConvertPointViewerToWorld(event.offsetX, event.offsetY);
@@ -2492,7 +2546,7 @@
     if (String.fromCharCode(event.keyCode) === 'R') {
       // this.MainView.Camera.Reset();
       this.MainView.Camera.ComputeMatrix();
-      this.ZoomTarget = this.MainView.Camera.GetHeight();
+      this.ZoomTarget = this.CorrectZoomTarget(this.MainView.Camera.GetHeight());
       this.EventuallyRender(true);
       return false;
     }
