@@ -255,6 +255,7 @@ window.SA = window.SA || {};
     // Reusing the image caused problems.
     // if (this.Image === null) {
     this.Image = new Image();
+    this.Image.crossOrigin = 'Anonymous';
 
     this.starttime = new Date().getTime();
     // Setup callbacks
