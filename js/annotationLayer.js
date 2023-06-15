@@ -294,9 +294,7 @@
     if (typeof (color) === 'string') {
       // No other formats for now.
       console.error('Cannot decode color ' + color);
-      var colorArray = new Array(3);
-      colorArray.fill(0);
-      return colorArray;
+      return [0, 0, 0];
     }
     // Fall through arrays.
     return color.slice();

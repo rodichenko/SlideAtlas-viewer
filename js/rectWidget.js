@@ -38,10 +38,8 @@
     this.Width = 50;
     this.Height = 50;
     this.Orientation = 0; // Angle with respect to x axis ?
-    this.Origin = new Array(2); // Center in world coordinates.
-    this.Origin.fill(10000);
-    this.OutlineColor = new Array(3);
-    this.OutlineColor.fill(0);
+    this.Origin = [10000, 10000]; // Center in world coordinates.
+    this.OutlineColor = [0, 0, 0];
     this.PointBuffer = [];
   }
 
@@ -113,7 +111,9 @@
     this.Shape = new Rect();
     // TODO: Correct the mix or orientation and rotation.
     this.Shape.Orientation = cam.GetImageRotation();
-    this.Shape.Origin.fill(0);
+    for (var so = 0; so < this.Shape.Origin.length; so++) {
+      this.Shape.Origin[so] = 0;
+    }
     this.Shape.SetOutlineColor([0.0, 0.0, 0.0]);
     if (DEFAULT_WIDTH > 0) {
       this.Shape.Height = DEFAULT_HEIGHT;

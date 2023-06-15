@@ -243,7 +243,9 @@
       rectSet.Hash.Build(rectSet, bds);
     }
     var visibilities = rectSet.Visibilities;
-    visibilities.fill(true);
+    for (var v = 0; v < visibilities.length; v++) {
+      visibilities[v] = true;
+    }
 
     // Rectangles are reverse sorted by confidnece
     for (var i = 0; i < visibilities.length; ++i) {
@@ -286,7 +288,9 @@
       rectSet.Hash.Build(rectSet, bds);
     }
     var visibilities = rectSet.Visibilities;
-    visibilities.fill(false);
+    for (var v = 0; v < visibilities.length; v++) {
+      visibilities[v] = false;
+    }
 
     // Rectangles are reverse sorted by confidnece
     for (var i = 0; i < visibilities.length; ++i) {

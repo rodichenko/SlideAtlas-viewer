@@ -17,8 +17,7 @@
     this.PositionCoordinateSystem = Shape.SLIDE;
     // This is the position of the shape origin in the containing
     // coordinate system. Probably better called position.
-    this.Origin = new Array(2);
-    this.Origin.fill(10000); // Anchor in world coordinates.
+    this.Origin = [10000, 10000]; // Anchor in world coordinates.
     // FixedSize => PointBuffer units in viewer pixels.
     // otherwise
     this.FixedSize = false;

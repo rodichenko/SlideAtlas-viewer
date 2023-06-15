@@ -6,8 +6,7 @@
     SAM.Shape.call(this);
     this.Radius = 10; // Radius in pixels
     this.Origin = [10000, 10000]; // Center in world coordinates.
-    this.OutlineColor = new Array(3);
-    this.OutlineColor.fill(0);
+    this.OutlineColor = [0, 0, 0];
     this.PointBuffer = [];
   }
   Circle.prototype = new SAM.Shape();
